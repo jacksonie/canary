@@ -188,6 +188,12 @@ enum TradeEvents_t {
 	ON_TRADE_CANCEL,
 };
 
+enum ItemAnimation_t : uint8_t {
+	ANIMATION_NONE = 0,
+	ANIMATION_RANDOM = 1,
+	ANIMATION_DESYNC = 2,
+};
+
 enum AttrTypes_t {
 	// ATTR_NONE = 0 (last enum)
 	// ATTR_DESCRIPTION = 1,

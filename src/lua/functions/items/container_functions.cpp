@@ -226,7 +226,7 @@ int ContainerFunctions::luaContainerGetContentDescription(lua_State* L) {
 	// container:getContentDescription()
 	Container* container = getUserdata<Container>(L, 1);
 	if (container) {
-		pushString(L, container->getContentDescription());
+		pushString(L, container->getContentDescription(getBoolean(L, 2, false)));
 	} else {
 		lua_pushnil(L);
 	}

@@ -177,6 +177,8 @@ bool ConfigManager::load() {
 	boolean[INVENTORY_GLOW] = getGlobalBoolean(L, "inventoryGlowOnFiveBless", false);
 	boolean[XP_DISPLAY_MODE] = getGlobalBoolean(L, "experienceDisplayRates", true);
 
+	boolean[OLD_PROTOCOL] = getGlobalBoolean(L, "allowOldProtocol", false);
+
 	string[DEFAULT_PRIORITY] = getGlobalString(L, "defaultPriority", "high");
 	string[SERVER_NAME] = getGlobalString(L, "serverName", "");
 	string[SERVER_MOTD] = getGlobalString(L, "serverMotd", "");

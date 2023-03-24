@@ -351,6 +351,8 @@ class Game {
 		void playerCancelMarketOffer(uint32_t playerId, uint32_t timestamp, uint16_t counter);
 		void playerAcceptMarketOffer(uint32_t playerId, uint32_t timestamp, uint16_t counter, uint16_t amount);
 
+		void updatePlayerHelpers(Player* player);
+
 		void parsePlayerExtendedOpcode(uint32_t playerId, uint8_t opcode, const std::string &buffer);
 
 		static void updatePremium(account::Account &account);

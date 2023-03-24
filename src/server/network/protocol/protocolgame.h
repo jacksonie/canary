@@ -107,6 +107,8 @@ class ProtocolGame final : public Protocol {
 		void parseLootContainer(NetworkMessage &msg);
 		void parseQuickLootBlackWhitelist(NetworkMessage &msg);
 
+		void sendCreatureHelpers(uint32_t creatureId, uint16_t helpers);
+
 		// Depot search
 		void sendDepotItems(const ItemsTierCountList &itemMap, uint16_t count);
 		void sendCloseDepotSearch();
@@ -474,6 +476,8 @@ class ProtocolGame final : public Protocol {
 		bool shouldAddExivaRestrictions = false;
 
 		void sendInventory();
+
+		bool oldProtocol = false;
 
 		void sendOpenStash();
 		void parseStashWithdraw(NetworkMessage &msg);
