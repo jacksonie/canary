@@ -2719,32 +2719,43 @@ void ProtocolGame::parseMarketLeave() {
 }
 
 void ProtocolGame::parseMarketBrowse(NetworkMessage &msg) {
-	uint16_t browseId = oldProtocol ? msg.get<uint16_t>() : static_cast<uint16_t>(msg.getByte());
+	if (oldProtocol) {
+		uint16_t browseId = static_cast<uint16_t>(msg.getByte());
+		if (browseId == MARKETREQUEST_OWN_OFFERS_OLD) {
+			addGameTask(&Game::playerBrowseMarketOwnOffers, player->getID());
+		} else if (browseId == MARKETREQUEST_OWN_HISTORY_OLD) {
+			addGameTask(&Game::playerBrowseMarketOwnHistory, player->getID());
+		}	else {
+			addGameTask(&Game::playerBrowseMarket, player->getID(), browseId, 0);
+		}
+	}	else {
+		uint8_t browseId = msg.get<uint8_t>();
 
-	if ((oldProtocol && browseId == MARKETREQUEST_OWN_OFFERS_OLD) || (!oldProtocol && browseId == MARKETREQUEST_OWN_OFFERS)) {
-		addGameTask(&Game::playerBrowseMarketOwnOffers, player->getID());
-	} else if ((oldProtocol && browseId == MARKETREQUEST_OWN_HISTORY) || (!oldProtocol && browseId == MARKETREQUEST_OWN_HISTORY_OLD)) {
-		addGameTask(&Game::playerBrowseMarketOwnHistory, player->getID());
-	} else if (!oldProtocol) {
-		uint16_t itemId = msg.get<uint16_t>();
-		player->sendMarketEnter(player->getLastDepotId());
-		addGameTask(&Game::playerBrowseMarket, player->getID(), itemId);
-	} else {
-		addGameTask(&Game::playerBrowseMarket, player->getID(), browseId);
+		if (browseId == MARKETREQUEST_OWN_OFFERS) {
+			addGameTask(&Game::playerBrowseMarketOwnOffers, player->getID());
+		} else if (browseId == MARKETREQUEST_OWN_HISTORY) {
+			addGameTask(&Game::playerBrowseMarketOwnHistory, player->getID());
+		} else {
+			uint16_t itemId = msg.get<uint16_t>();
+			uint8_t tier = msg.get<uint8_t>();
+			player->sendMarketEnter(player->getLastDepotId());
+			addGameTask(&Game::playerBrowseMarket, player->getID(), itemId, tier);
+		}
 	}
 }
 
 void ProtocolGame::parseMarketCreateOffer(NetworkMessage &msg) {
 	uint8_t type = msg.getByte();
 	uint16_t itemId = msg.get<uint16_t>();
+	uint8_t itemTier = 0;
 	if (!oldProtocol && Item::items[itemId].upgradeClassification > 0) {
-		msg.getByte(); // Tier
+		itemTier = msg.getByte(); // Tier
 	}
 	uint16_t amount = msg.get<uint16_t>();
 	uint64_t price = oldProtocol ? static_cast<uint64_t>(msg.get<uint32_t>()) : msg.get<uint64_t>();
 	bool anonymous = (msg.getByte() != 0);
 	if (amount > 0 && price > 0) {
-		addGameTask(&Game::playerCreateMarketOffer, player->getID(), type, itemId, amount, price, anonymous);
+		addGameTask(&Game::playerCreateMarketOffer, player->getID(), type, itemId, amount, price, itemTier, anonymous);
 	}
 }
 
