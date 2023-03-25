@@ -478,16 +478,13 @@ void ProtocolGame::onRecvFirstMessage(NetworkMessage &msg) {
 	} else if (operatingSystem <= CLIENTOS_NEW_MAC) {
 		setChecksumMethod(CHECKSUM_METHOD_SEQUENCE);
 		enableCompression();
-	} else {
-		// OTC
-		setChecksumMethod(CHECKSUM_METHOD_ADLER32);
 	}
+
+	clientVersion = static_cast<int32_t>(msg.get<uint32_t>());
 
 	if (!oldProtocol) {
-		clientVersion = static_cast<int32_t>(msg.get<uint32_t>());
+		msg.getString(); // Client version (String)
 	}
-
-	msg.getString(); // Client version (String)
 
 	msg.skipBytes(3); // U16 dat revision, U8 game preview state
 
@@ -3943,15 +3940,19 @@ void ProtocolGame::sendResourcesBalance(uint64_t money /*= 0*/, uint64_t bank /*
 	sendResourceBalance(RESOURCE_BANK, bank);
 	sendResourceBalance(RESOURCE_INVENTORY, money);
 	sendResourceBalance(RESOURCE_PREY_CARDS, preyCards);
-	sendResourceBalance(RESOURCE_TASK_HUNTING, taskHunting);
-	sendResourceBalance(RESOURCE_FORGE_DUST, forgeDust);
-	sendResourceBalance(RESOURCE_FORGE_SLIVER, forgeSliver);
-	sendResourceBalance(RESOURCE_FORGE_CORES, forgeCores);
+	if (!oldProtocol) {
+		sendResourceBalance(RESOURCE_TASK_HUNTING, taskHunting);
+		sendResourceBalance(RESOURCE_FORGE_DUST, forgeDust);
+		sendResourceBalance(RESOURCE_FORGE_SLIVER, forgeSliver);
+		sendResourceBalance(RESOURCE_FORGE_CORES, forgeCores);
+	}
 }
 
 void ProtocolGame::sendResourceBalance(Resource_t resourceType, uint64_t value) {
-	if (oldProtocol && resourceType > RESOURCE_PREY_CARDS) {
-		return;
+	if (oldProtocol) {
+		if (resourceType != RESOURCE_BANK && resourceType != RESOURCE_INVENTORY && resourceType != RESOURCE_PREY_CARDS) {
+			return;
+		}
 	}
 	NetworkMessage msg;
 	msg.addByte(0xEE);
@@ -4397,6 +4398,9 @@ void ProtocolGame::sendForgingData() {
 }
 
 void ProtocolGame::sendOpenForge() {
+	if (oldProtocol) {
+		return;
+	}
 	// We will use it when sending the bytes to send the item information to the client
 	std::map<uint16_t, std::map<uint8_t, uint16_t>> fusionItemsMap;
 	std::map<uint16_t, std::map<uint8_t, uint16_t>> donorTierItemMap;
@@ -4512,6 +4516,9 @@ void ProtocolGame::sendOpenForge() {
 }
 
 void ProtocolGame::parseForgeEnter(NetworkMessage &msg) {
+		if (oldProtocol) {
+		return;
+	}
 	// 0xBF -> 0 = fusion, 1 = transfer, 2 = dust to sliver, 3 = sliver to core, 4 = increase dust limit
 	uint8_t action = msg.getByte();
 	uint16_t firstItem = msg.get<uint16_t>();
@@ -4529,10 +4536,16 @@ void ProtocolGame::parseForgeEnter(NetworkMessage &msg) {
 }
 
 void ProtocolGame::parseForgeBrowseHistory(NetworkMessage &msg) {
+	if (oldProtocol) {
+		return;
+	}
 	addGameTask(&Game::playerBrowseForgeHistory, player->getID(), msg.getByte());
 }
 
 void ProtocolGame::sendForgeFusionItem(uint16_t itemId, uint8_t tier, bool success, uint8_t bonus, uint8_t coreCount) {
+	if (oldProtocol) {
+		return;
+	}
 	NetworkMessage msg;
 	msg.addByte(0x8A);
 
@@ -4559,6 +4572,9 @@ void ProtocolGame::sendForgeFusionItem(uint16_t itemId, uint8_t tier, bool succe
 }
 
 void ProtocolGame::sendTransferItemTier(uint16_t firstItem, uint8_t tier, uint16_t secondItem) {
+	if (oldProtocol) {
+		return;
+	}
 	NetworkMessage msg;
 	msg.addByte(0x8A);
 
@@ -4577,6 +4593,9 @@ void ProtocolGame::sendTransferItemTier(uint16_t firstItem, uint8_t tier, uint16
 }
 
 void ProtocolGame::sendForgeHistory(uint8_t page) {
+	if (oldProtocol) {
+		return;
+	}
 	page = page + 1;
 	auto historyVector = player->getForgeHistory();
 	auto historyVectorLen = getVectorIterationIncreaseCount(historyVector);
@@ -4613,11 +4632,17 @@ void ProtocolGame::sendForgeHistory(uint8_t page) {
 }
 
 void ProtocolGame::sendForgeError(const ReturnValue returnValue) {
+	if (oldProtocol) {
+		return;
+	}
 	sendMessageDialog(getReturnMessage(returnValue));
 	closeForgeWindow();
 }
 
 void ProtocolGame::closeForgeWindow() {
+	if (oldProtocol) {
+		return;
+	}
 	NetworkMessage msg;
 	msg.addByte(0x89);
 	writeToOutputBuffer(msg);
@@ -6227,8 +6252,8 @@ void ProtocolGame::sendPreyData(const PreySlot* slot) {
 		return;
 	}
 
-	msg.add<uint32_t>(std::max<uint32_t>(static_cast<uint32_t>(((slot->freeRerollTimeStamp - OTSYS_TIME()) / 1000)), 0));
-	msg.addByte(static_cast<uint8_t>(slot->option));
+	// msg.add<uint32_t>(std::max<uint32_t>(static_cast<uint32_t>(((slot->freeRerollTimeStamp - OTSYS_TIME()) / 1000)), 0));
+	// msg.addByte(static_cast<uint8_t>(slot->option));
 
 	if (oldProtocol) {
 		msg.add<uint16_t>(static_cast<uint16_t>(std::max<uint32_t>(std::max<uint32_t>(static_cast<uint32_t>(((slot->freeRerollTimeStamp - OTSYS_TIME()) / 1000)), 0), 0)));
@@ -6300,7 +6325,7 @@ void ProtocolGame::AddCreature(NetworkMessage &msg, const Creature* creature, bo
 		msg.add<uint16_t>(0x61);
 		msg.add<uint32_t>(remove);
 		msg.add<uint32_t>(creature->getID());
-		if (creature->isHealthHidden()) {
+		if (!oldProtocol && creature->isHealthHidden()) {
 			msg.addByte(CREATURETYPE_HIDDEN);
 		} else {
 			msg.addByte(creatureType);
@@ -6314,7 +6339,7 @@ void ProtocolGame::AddCreature(NetworkMessage &msg, const Creature* creature, bo
 			}
 		}
 
-		if (creature->isHealthHidden()) {
+		if (!!oldProtocol && creature->isHealthHidden()) {
 			msg.addString("");
 		} else {
 			msg.addString(creature->getName());
@@ -6375,7 +6400,7 @@ void ProtocolGame::AddCreature(NetworkMessage &msg, const Creature* creature, bo
 		}
 	}
 
-	if (creature->isHealthHidden()) {
+	if (!oldProtocol && creature->isHealthHidden()) {
 		msg.addByte(CREATURETYPE_HIDDEN);
 	} else {
 		msg.addByte(creatureType); // Type (for summons)
@@ -6401,7 +6426,9 @@ void ProtocolGame::AddCreature(NetworkMessage &msg, const Creature* creature, bo
 	msg.addByte(0xFF); // MARK_UNMARKED
 	if (!oldProtocol) {
 		msg.addByte(0x00); // inspection type
-	} else {
+	}
+	
+	if (oldProtocol) {
 		if (otherPlayer) {
 			msg.add<uint16_t>(otherPlayer->getHelpers());
 		} else {
@@ -7264,6 +7291,9 @@ void ProtocolGame::sendForgeSkillStats(NetworkMessage &msg) const {
 }
 
 void ProtocolGame::sendBosstiaryData() {
+	if (oldProtocol) {
+		return;
+	}
 	NetworkMessage msg;
 	msg.addByte(0x61);
 
@@ -7295,6 +7325,9 @@ void ProtocolGame::sendBosstiaryData() {
 }
 
 void ProtocolGame::parseSendBosstiary() {
+	if (oldProtocol) {
+		return;
+	}
 	sendBosstiaryData();
 
 	NetworkMessage msg;
@@ -7323,6 +7356,9 @@ void ProtocolGame::parseSendBosstiary() {
 }
 
 void ProtocolGame::parseSendBosstiarySlots() {
+	if (oldProtocol) {
+		return;
+	}
 	sendBosstiaryData();
 
 	NetworkMessage msg;
@@ -7435,6 +7471,9 @@ void ProtocolGame::parseSendBosstiarySlots() {
 }
 
 void ProtocolGame::parseBosstiarySlot(NetworkMessage &msg) {
+	if (oldProtocol) {
+		return;
+	}
 	uint8_t slotBossId = msg.getByte();
 	uint32_t selectedBossId = msg.get<uint32_t>();
 
@@ -7442,6 +7481,9 @@ void ProtocolGame::parseBosstiarySlot(NetworkMessage &msg) {
 }
 
 void ProtocolGame::sendBossPodiumWindow(const Item* podium, const Position &position, uint16_t itemId, uint8_t stackPos) {
+	if (oldProtocol) {
+		return;
+	}
 	if (!podium) {
 		SPDLOG_ERROR("[{}] item is nullptr", __FUNCTION__);
 		return;
@@ -7517,6 +7559,9 @@ void ProtocolGame::sendBossPodiumWindow(const Item* podium, const Position &posi
 }
 
 void ProtocolGame::parseSetBossPodium(NetworkMessage &msg) const {
+	if (oldProtocol) {
+		return;
+	}
 	uint32_t bossRaceId = msg.get<uint32_t>();
 	Position pos = msg.getPosition();
 	uint16_t itemId = msg.get<uint16_t>();
@@ -7529,6 +7574,9 @@ void ProtocolGame::parseSetBossPodium(NetworkMessage &msg) const {
 }
 
 void ProtocolGame::sendBosstiaryCooldownTimer() {
+	if (oldProtocol) {
+		return;
+	}
 	NetworkMessage msg;
 	msg.addByte(0xBD);
 
@@ -7551,6 +7599,9 @@ void ProtocolGame::sendBosstiaryCooldownTimer() {
 }
 
 void ProtocolGame::sendBosstiaryEntryChanged(uint32_t bossid) {
+	if (oldProtocol) {
+		return;
+	}
 	NetworkMessage msg;
 	msg.addByte(0xE6);
 	msg.add<uint32_t>(bossid);
