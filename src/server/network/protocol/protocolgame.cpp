@@ -5854,19 +5854,25 @@ void ProtocolGame::sendOutfitWindow() {
 		msg.add<uint16_t>(75);
 		msg.addString("Gamemaster");
 		msg.addByte(0);
-		msg.addByte(0x00);
+		if (!oldProtocol) {
+			msg.addByte(0x00);
+		}
 		++outfitSize;
 
 		msg.add<uint16_t>(266);
 		msg.addString("Customer Support");
 		msg.addByte(0);
-		msg.addByte(0x00);
+		if (!oldProtocol) {
+			msg.addByte(0x00);
+		}
 		++outfitSize;
 
 		msg.add<uint16_t>(302);
 		msg.addString("Community Manager");
 		msg.addByte(0);
-		msg.addByte(0x00);
+		if (!oldProtocol) {
+			msg.addByte(0x00);
+		}
 		++outfitSize;
 	}
 
